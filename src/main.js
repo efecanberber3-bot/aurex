@@ -1,6 +1,7 @@
 import './styles/tokens.css';
 import './styles/global.css';
 import './styles/app.css';
+import './styles/progress.css';
 import { supabase, isConfigured } from './services/supabase.js';
 import { getSession, signIn, signUp, signOut, getProfile } from './services/auth.service.js';
 import { listClients, createClient, updateClientStatus, getClient } from './services/clients.service.js';
