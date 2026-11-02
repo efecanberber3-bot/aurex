@@ -57,7 +57,7 @@ function shell(content) {
       <main class="main-area">
         <header class="topbar"><button class="icon-button mobile-menu" id="mobile-menu" aria-label="Menüyü aç">${icon('menu')}</button><div><span class="eyebrow">PERSONAL TRAINING MANAGEMENT</span><h1>${pageTitle()}</h1></div><div class="topbar-right"><span class="status-dot"></span><span class="topbar-status">Sistem hazır</span><div class="avatar">${initials(state.profile?.display_name || 'A')}</div></div></header>
         <section class="page-content">${content}</section>
-        <footer class="footer"><span>AUREX <span class="gold">●</span> by EB Digital Studio</span><span>Personal Training Management · V1.1</span></footer>
+        <footer class="footer"><span>AUREX <span class="gold">●</span> by EB Digital Studio</span><span>Personal Training Management · V1.2</span></footer>
       </main>
     </div>`;
   document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.view)));
