@@ -97,3 +97,9 @@ input:focus,textarea:focus,select:focus{border-color:rgba(239,35,60,.65);box-sha
 .auth-tabs{background:#191a1d}
 .auth-tab.active{background:rgba(239,35,60,.15);color:#ff6875}
 @media(max-width:700px){.brand-logo{max-width:205px}.welcome-row{padding:19px}.welcome-row:after{right:4px;font-size:145px}}
+
+.client-filters{display:flex;gap:9px;margin-top:13px;max-width:510px}
+.client-filters input{min-width:220px}
+.client-filters select{min-width:155px}
+tr[hidden]{display:none}
+@media(max-width:700px){.client-filters{width:100%;flex-direction:column}.client-filters input,.client-filters select{min-width:0}.client-page-actions{width:100%}.client-page-actions>div{width:100%}}
