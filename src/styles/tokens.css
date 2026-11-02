@@ -1,14 +1,14 @@
 :root {
   color-scheme: dark;
   --bg: #10100f;
-  --surface: #181816;
-  --surface-2: #20201d;
+  --surface: #111214;
+  --surface-2: #191a1d;
   --surface-3: #292824;
-  --line: rgba(255,255,255,.08);
+  --line: rgba(255,255,255,.09);
   --text: #f3f0e9;
   --muted: #96938b;
-  --gold: #c7a15b;
-  --gold-light: #e1c17e;
+  --gold: #ef233c;
+  --gold-light: #ff6875;
   --green: #7bbd91;
   --red: #df8585;
   --radius: 16px;
