@@ -1,7 +1,7 @@
 {
   "name": "aurex-fitness-management-platform",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,10 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.0",
-    "lucide": "^0.468.0"
+    "@supabase/supabase-js": "^2.57.0"
   },
   "devDependencies": {
     "vite": "^6.3.5"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

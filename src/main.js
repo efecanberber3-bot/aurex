@@ -178,7 +178,7 @@ function renderAuth() {
   });
 }
 async function boot() {
-  if (!isConfigured) { renderAuth(); const err=document.querySelector('#auth-error'); if(err)err.textContent='Önce .env.local dosyasına Supabase URL ve publishable/anon key bilgilerini ekle.'; return; }
+  if (!isConfigured) { renderAuth(); const err=document.querySelector('#auth-error'); if(err)err.textContent='AUREX arayüzü hazır. Giriş ve kayıt işlemlerini etkinleştirmek için Supabase bağlantısını daha sonra kuracağız.'; return; }
   try {
     state.session=await getSession();
     if(!state.session){renderAuth();return;}
