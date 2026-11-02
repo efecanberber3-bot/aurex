@@ -155,6 +155,7 @@ async function saveSession(e) {
   catch(err){notify(err.message,'error');}
 }
 async function openClient(id) {
+  state.selectedClient = id;
   try {
     const [c, records] = await Promise.all([getClient(id), getClientManagementData(id)]);
     const metricLabel = key => ({waist_cm:'Bel',body_fat_pct:'Yağ oranı',chest_cm:'Göğüs',arm_cm:'Kol',leg_cm:'Bacak'}[key] || key);
@@ -213,7 +214,7 @@ function showRecordForm(title, fields, save) {
   form.addEventListener('submit',async e=>{
     e.preventDefault();
     const data=Object.fromEntries(new FormData(form));
-    try { await save(data); notify('Kayıt başarıyla eklendi.','success'); await refreshData(); document.querySelector('#modal')?.remove(); await openClient(state.selectedClient || document.querySelector('[data-client]')?.dataset.client); }
+    try { await save(data); notify('Kayıt başarıyla eklendi.','success'); await refreshData(); document.querySelector('#modal')?.remove(); await openClient(id); }
     catch(err){notify(err.message,'error');}
   });
 }
