@@ -6,6 +6,7 @@ import { getSession, signIn, signUp, signOut, getProfile } from './services/auth
 import { listClients, createClient, updateClientStatus, getClient } from './services/clients.service.js';
 import { listPrograms, createProgram, listExercises, addProgramExercise } from './services/workouts.service.js';
 import { listSessions, createSession } from './services/sessions.service.js';
+import { getClientManagementData, saveClientAssessment, addClientGoal, addCoachNote } from './services/client-management.service.js';
 import { escapeHtml, formatDate, initials } from './utils/helpers.js';
 
 const app = document.querySelector('#app');
@@ -155,13 +156,66 @@ async function saveSession(e) {
 }
 async function openClient(id) {
   try {
-    const c=await getClient(id);
-    const body=`<div class="modal-backdrop" id="modal"><article class="modal"><div class="modal-head"><div><span class="eyebrow">CLIENT PROFILE</span><h3>${escapeHtml(c.first_name+' '+c.last_name)}</h3></div><button class="icon-button" id="close-modal">${icon('close')}</button></div><div class="profile-detail-grid"><div><small>Branş</small><b>${escapeHtml(c.sport||'Belirtilmedi')}</b></div><div><small>Hedef</small><b>${escapeHtml(c.goal||'Belirtilmedi')}</b></div><div><small>Seviye</small><b>${escapeHtml(c.experience_level||'beginner')}</b></div><div><small>Durum</small><b>${escapeHtml(c.status)}</b></div></div><p class="muted">Danışan hesabı bağlantısı: ${c.auth_user_id?'Bağlı':'Henüz bağlanmadı'}</p><button class="btn btn-ghost full" id="close-profile">Kapat</button></article></div>`;
-    app.insertAdjacentHTML('beforeend',body);
+    const [c, records] = await Promise.all([getClient(id), getClientManagementData(id)]);
+    const metricLabel = key => ({waist_cm:'Bel',body_fat_pct:'Yağ oranı',chest_cm:'Göğüs',arm_cm:'Kol',leg_cm:'Bacak'}[key] || key);
+    const latest = records.assessments[0];
+    const body = \`<div class="modal-backdrop" id="modal"><article class="modal client-profile-modal">
+      <div class="modal-head"><div><span class="eyebrow">CLIENT PROFILE</span><h3>\${escapeHtml(c.first_name+' '+c.last_name)}</h3></div><button class="icon-button" id="close-modal">\${icon('close')}</button></div>
+      <div class="profile-detail-grid">
+        <div><small>Branş</small><b>\${escapeHtml(c.sport||'Belirtilmedi')}</b></div>
+        <div><small>Hedef</small><b>\${escapeHtml(c.goal||'Belirtilmedi')}</b></div>
+        <div><small>Seviye</small><b>\${escapeHtml(c.experience_level||'beginner')}</b></div>
+        <div><small>Durum</small><b>\${c.status==='active'?'Aktif':c.status==='paused'?'Duraklatıldı':'Tamamlandı'}</b></div>
+      </div>
+      <div class="profile-toolbar"><span class="muted">Hesap: \${c.auth_user_id?'Bağlı':'Henüz bağlanmadı'}</span>
+        <button class="btn btn-ghost" id="toggle-client-status">\${c.status==='active'?'Danışanı duraklat':'Danışanı aktifleştir'}</button></div>
+      <section class="record-section"><div class="panel-heading"><h3>Son değerlendirme</h3><button class="text-button" id="add-assessment">+ Ölçüm ekle</button></div>
+        \${latest ? \`<div class="metric-grid"><div><small>Boy</small><b>\${latest.height_cm ?? '—'} cm</b></div><div><small>Kilo</small><b>\${latest.weight_kg ?? '—'} kg</b></div><div><small>Değerlendirme</small><b>\${new Date(latest.assessed_at).toLocaleDateString('tr-TR')}</b></div></div><p class="muted">\${escapeHtml(latest.fitness_notes||'Not eklenmemiş.')}</p>\` : '<p class="muted">Henüz ölçüm kaydı yok.</p>'}
+        \${records.progress.length ? \`<div class="record-list">\${records.progress.map(p=>\`<div class="record-row"><span>\${escapeHtml(metricLabel(p.metric_key))}</span><b>\${p.metric_value} \${escapeHtml(p.unit||'')}</b><small>\${new Date(p.recorded_at).toLocaleDateString('tr-TR')}</small></div>\`).join('')}</div>\` : ''}
+      </section>
+      <section class="record-section"><div class="panel-heading"><h3>Hedefler</h3><button class="text-button" id="add-goal">+ Hedef ekle</button></div>
+        \${records.goals.length ? \`<div class="record-list">\${records.goals.map(g=>\`<div class="record-row goal-row"><div><b>\${escapeHtml(g.title)}</b><small>\${escapeHtml(g.description||'')}</small></div><span class="pill \${g.status==='active'?'green':'gray'}">\${g.status==='active'?'Aktif':escapeHtml(g.status)}</span></div>\`).join('')}</div>\` : '<p class="muted">Henüz hedef tanımlanmamış.</p>'}
+      </section>
+      <section class="record-section"><div class="panel-heading"><h3>Antrenör notları</h3><button class="text-button" id="add-note">+ Not ekle</button></div>
+        \${records.notes.length ? \`<div class="record-list">\${records.notes.map(n=>\`<div class="note-card"><p>\${escapeHtml(n.note)}</p><small>\${new Date(n.created_at).toLocaleString('tr-TR')}</small></div>\`).join('')}</div>\` : '<p class="muted">Henüz not eklenmemiş.</p>'}
+      </section>
+      <div class="modal-actions"><button class="btn btn-ghost" id="close-profile">Kapat</button></div>
+    </article></div>\`;
+    app.insertAdjacentHTML('beforeend', body);
     const close=()=>document.querySelector('#modal')?.remove();
     document.querySelector('#close-modal')?.addEventListener('click',close);
     document.querySelector('#close-profile')?.addEventListener('click',close);
+    document.querySelector('#modal')?.addEventListener('click',e=>{if(e.target.id==='modal')close();});
+    document.querySelector('#toggle-client-status')?.addEventListener('click',async()=>{
+      try { await updateClientStatus(id,c.status==='active'?'paused':'active'); notify('Danışan durumu güncellendi.','success'); await refreshData(); close(); render(); }
+      catch(err){notify(err.message,'error');}
+    });
+    document.querySelector('#add-assessment')?.addEventListener('click',()=>showRecordForm('Ölçüm ekle',[
+      ['height_cm','Boy (cm)','number'],['weight_kg','Kilo (kg)','number'],['waist_cm','Bel (cm)','number'],['body_fat_pct','Yağ oranı (%)','number'],['chest_cm','Göğüs (cm)','number'],['arm_cm','Kol (cm)','number'],['leg_cm','Bacak (cm)','number'],['fitness_notes','Değerlendirme notu','textarea']
+    ],async data=>{await saveClientAssessment(id,data);}));
+    document.querySelector('#add-goal')?.addEventListener('click',()=>showRecordForm('Hedef ekle',[
+      ['title','Hedef başlığı','text'],['description','Açıklama','textarea'],['target_date','Hedef tarihi','date']
+    ],async data=>{await addClientGoal(id,data);}));
+    document.querySelector('#add-note')?.addEventListener('click',()=>showRecordForm('Antrenör notu',[
+      ['note','Not','textarea']
+    ],async data=>{await addCoachNote(id,state.session.user.id,data.note);}));
   } catch(err){notify(err.message,'error');}
+}
+function showRecordForm(title, fields, save) {
+  const modal=document.querySelector('#modal .modal');
+  const form=document.createElement('form');
+  form.className='inline-record-form';
+  form.innerHTML=\`<div class="modal-head"><h3>\${escapeHtml(title)}</h3><button type="button" class="icon-button" id="cancel-record">\${icon('close')}</button></div>\${fields.map(([name,label,type])=>\`<label>\${escapeHtml(label)}\${type==='textarea'? \`<textarea name="\${name}" rows="3" \${name==='note'||name==='title'?'required':''}></textarea>\`:\`<input name="\${name}" type="\${type}" \${type==='number'?'step="0.1" min="0"':''} \${name==='title'?'required':''}>\`}</label>\`).join('')}<div class="modal-actions"><button type="button" class="btn btn-ghost" id="cancel-record-2">Vazgeç</button><button class="btn btn-gold" type="submit">Kaydet</button></div>\`;
+  modal.append(form);
+  const remove=()=>form.remove();
+  form.querySelector('#cancel-record').addEventListener('click',remove);
+  form.querySelector('#cancel-record-2').addEventListener('click',remove);
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const data=Object.fromEntries(new FormData(form));
+    try { await save(data); notify('Kayıt başarıyla eklendi.','success'); await refreshData(); document.querySelector('#modal')?.remove(); await openClient(state.selectedClient || document.querySelector('[data-client]')?.dataset.client); }
+    catch(err){notify(err.message,'error');}
+  });
 }
 function renderAuth() {
   app.innerHTML=`<main class="auth-layout"><section class="auth-brand"><div class="brand"><span class="brand-symbol">A</span><span><b>AUREX</b><small>TRAINER PLATFORM</small></span></div><div class="auth-hero"><span class="eyebrow">TRAIN SMARTER. TRACK BETTER.</span><h1>Gelişimin<br><span class="gold">kontrolü</span><br>senin elinde.</h1><p>Antrenörler ve danışanlar için sade, güçlü ve kişisel bir takip deneyimi.</p></div><div class="auth-foot">AUREX · by EB Digital Studio</div></section><section class="auth-form-side"><form class="auth-card" id="auth-form"><div class="auth-heading"><span class="eyebrow">WELCOME BACK</span><h2>Hesabına giriş yap</h2><p class="muted">AUREX çalışma alanına devam et.</p></div><div class="auth-tabs"><button type="button" class="auth-tab active" data-mode="login">Giriş yap</button><button type="button" class="auth-tab" data-mode="signup">Hesap oluştur</button></div><label>Ad soyad <input name="display_name" id="display-name" placeholder="Adınız Soyadınız" autocomplete="name" hidden></label><label>E-posta<input name="email" type="email" required autocomplete="email" placeholder="ornek@email.com"></label><label>Şifre<input name="password" type="password" required minlength="8" autocomplete="current-password" placeholder="En az 8 karakter"></label><button class="btn btn-gold full" type="submit" id="auth-submit">Giriş yap ${icon('arrow')}</button><p class="auth-note">Hesap oluşturduğunda varsayılan rolün danışan olur. Antrenör erişimi yönetici tarafından ayrıca tanımlanır.</p><p class="auth-error" id="auth-error"></p></form></section></main>`;
