@@ -42,7 +42,7 @@ export async function createExercise(input) {
     category: input.category || 'strength',
     description: input.description?.trim() || null,
     created_by: user.id,
-    is_public: false
+    is_public: true
   }).select().single();
   if (error) throw error;
   return data;
