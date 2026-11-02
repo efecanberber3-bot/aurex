@@ -1,0 +1,16 @@
+/* AUREX daily nutrition */
+.nutrition-toolbar{display:flex;align-items:end;justify-content:space-between;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.nutrition-toolbar>label{min-width:190px;flex:1;max-width:300px;margin:0}
+.nutrition-toolbar>p{margin:0;align-self:center}
+.nutrition-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.8fr);gap:20px;padding:23px;margin-bottom:18px;border:1px solid rgba(239,35,60,.2);border-radius:16px;background:radial-gradient(ellipse at 85% 10%,rgba(239,35,60,.12),transparent 48%),var(--surface)}
+.nutrition-hero h2{font-size:25px;margin:7px 0}.nutrition-water{padding:15px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid var(--line)}
+.nutrition-water>span{font-size:9px;letter-spacing:1.5px;color:var(--muted);font-weight:800}.nutrition-water>strong{display:block;font-size:25px;margin:6px 0 12px}.nutrition-water>strong small{font-size:12px;color:var(--muted);font-weight:500}
+.nutrition-progress{display:grid;gap:7px;min-width:0}.nutrition-progress>div:first-child{display:flex;justify-content:space-between;gap:8px;font-size:11px}.nutrition-progress>div:first-child span{color:var(--muted)}.nutrition-progress>div:first-child b{font-variant-numeric:tabular-nums}
+.nutrition-track{height:7px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}.nutrition-track i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#b5162a,#ff6875);transition:width .25s}
+.nutrition-stats{margin-bottom:18px}.nutrition-stats .stat-card strong{font-size:24px}
+.nutrition-target-panel,.nutrition-log-panel{margin-bottom:18px}.nutrition-progress-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 24px}
+.nutrition-meal{padding:14px 0;border-top:1px solid var(--line)}.nutrition-meal h4{margin:0 0 8px;font-size:12px;color:#ff8791}
+.nutrition-entry{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.055)}
+.nutrition-entry-main b,.nutrition-entry-main small,.nutrition-entry-meta b,.nutrition-entry-meta small{display:block}.nutrition-entry-main b{font-size:12px}.nutrition-entry-main small,.nutrition-entry-meta small{font-size:10px;color:var(--muted);margin-top:3px}.nutrition-entry-meta{text-align:right}.nutrition-entry-meta b{font-size:12px;font-variant-numeric:tabular-nums}.nutrition-entry-actions{display:flex;gap:9px;align-items:center}
+.nutrition-entry-actions .text-button{font-size:11px}.nutrition-modal{max-width:560px!important}.nutrition-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}.nutrition-modal [hidden]{display:none!important}
+@media(max-width:760px){.nutrition-hero{grid-template-columns:1fr}.nutrition-progress-grid{grid-template-columns:1fr}.nutrition-toolbar>*{width:100%;max-width:none!important}.nutrition-entry{grid-template-columns:minmax(0,1fr) auto;gap:8px}.nutrition-entry-actions{grid-column:1/-1;justify-content:flex-end}.nutrition-entry-meta{text-align:right}}
