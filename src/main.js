@@ -160,28 +160,28 @@ async function openClient(id) {
     const [c, records] = await Promise.all([getClient(id), getClientManagementData(id)]);
     const metricLabel = key => ({waist_cm:'Bel',body_fat_pct:'Yağ oranı',chest_cm:'Göğüs',arm_cm:'Kol',leg_cm:'Bacak'}[key] || key);
     const latest = records.assessments[0];
-    const body = \`<div class="modal-backdrop" id="modal"><article class="modal client-profile-modal">
-      <div class="modal-head"><div><span class="eyebrow">CLIENT PROFILE</span><h3>\${escapeHtml(c.first_name+' '+c.last_name)}</h3></div><button class="icon-button" id="close-modal">\${icon('close')}</button></div>
+    const body = `<div class="modal-backdrop" id="modal"><article class="modal client-profile-modal">
+      <div class="modal-head"><div><span class="eyebrow">CLIENT PROFILE</span><h3>${escapeHtml(c.first_name+' '+c.last_name)}</h3></div><button class="icon-button" id="close-modal">${icon('close')}</button></div>
       <div class="profile-detail-grid">
-        <div><small>Branş</small><b>\${escapeHtml(c.sport||'Belirtilmedi')}</b></div>
-        <div><small>Hedef</small><b>\${escapeHtml(c.goal||'Belirtilmedi')}</b></div>
-        <div><small>Seviye</small><b>\${escapeHtml(c.experience_level||'beginner')}</b></div>
-        <div><small>Durum</small><b>\${c.status==='active'?'Aktif':c.status==='paused'?'Duraklatıldı':'Tamamlandı'}</b></div>
+        <div><small>Branş</small><b>${escapeHtml(c.sport||'Belirtilmedi')}</b></div>
+        <div><small>Hedef</small><b>${escapeHtml(c.goal||'Belirtilmedi')}</b></div>
+        <div><small>Seviye</small><b>${escapeHtml(c.experience_level||'beginner')}</b></div>
+        <div><small>Durum</small><b>${c.status==='active'?'Aktif':c.status==='paused'?'Duraklatıldı':'Tamamlandı'}</b></div>
       </div>
-      <div class="profile-toolbar"><span class="muted">Hesap: \${c.auth_user_id?'Bağlı':'Henüz bağlanmadı'}</span>
-        <button class="btn btn-ghost" id="toggle-client-status">\${c.status==='active'?'Danışanı duraklat':'Danışanı aktifleştir'}</button></div>
+      <div class="profile-toolbar"><span class="muted">Hesap: ${c.auth_user_id?'Bağlı':'Henüz bağlanmadı'}</span>
+        <button class="btn btn-ghost" id="toggle-client-status">${c.status==='active'?'Danışanı duraklat':'Danışanı aktifleştir'}</button></div>
       <section class="record-section"><div class="panel-heading"><h3>Son değerlendirme</h3><button class="text-button" id="add-assessment">+ Ölçüm ekle</button></div>
-        \${latest ? \`<div class="metric-grid"><div><small>Boy</small><b>\${latest.height_cm ?? '—'} cm</b></div><div><small>Kilo</small><b>\${latest.weight_kg ?? '—'} kg</b></div><div><small>Değerlendirme</small><b>\${new Date(latest.assessed_at).toLocaleDateString('tr-TR')}</b></div></div><p class="muted">\${escapeHtml(latest.fitness_notes||'Not eklenmemiş.')}</p>\` : '<p class="muted">Henüz ölçüm kaydı yok.</p>'}
-        \${records.progress.length ? \`<div class="record-list">\${records.progress.map(p=>\`<div class="record-row"><span>\${escapeHtml(metricLabel(p.metric_key))}</span><b>\${p.metric_value} \${escapeHtml(p.unit||'')}</b><small>\${new Date(p.recorded_at).toLocaleDateString('tr-TR')}</small></div>\`).join('')}</div>\` : ''}
+        ${latest ? `<div class="metric-grid"><div><small>Boy</small><b>${latest.height_cm ?? '—'} cm</b></div><div><small>Kilo</small><b>${latest.weight_kg ?? '—'} kg</b></div><div><small>Değerlendirme</small><b>${new Date(latest.assessed_at).toLocaleDateString('tr-TR')}</b></div></div><p class="muted">${escapeHtml(latest.fitness_notes||'Not eklenmemiş.')}</p>` : '<p class="muted">Henüz ölçüm kaydı yok.</p>'}
+        ${records.progress.length ? `<div class="record-list">${records.progress.map(p=>`<div class="record-row"><span>${escapeHtml(metricLabel(p.metric_key))}</span><b>${p.metric_value} ${escapeHtml(p.unit||'')}</b><small>${new Date(p.recorded_at).toLocaleDateString('tr-TR')}</small></div>`).join('')}</div>` : ''}
       </section>
       <section class="record-section"><div class="panel-heading"><h3>Hedefler</h3><button class="text-button" id="add-goal">+ Hedef ekle</button></div>
-        \${records.goals.length ? \`<div class="record-list">\${records.goals.map(g=>\`<div class="record-row goal-row"><div><b>\${escapeHtml(g.title)}</b><small>\${escapeHtml(g.description||'')}</small></div><span class="pill \${g.status==='active'?'green':'gray'}">\${g.status==='active'?'Aktif':escapeHtml(g.status)}</span></div>\`).join('')}</div>\` : '<p class="muted">Henüz hedef tanımlanmamış.</p>'}
+        ${records.goals.length ? `<div class="record-list">${records.goals.map(g=>`<div class="record-row goal-row"><div><b>${escapeHtml(g.title)}</b><small>${escapeHtml(g.description||'')}</small></div><span class="pill ${g.status==='active'?'green':'gray'}">${g.status==='active'?'Aktif':escapeHtml(g.status)}</span></div>`).join('')}</div>` : '<p class="muted">Henüz hedef tanımlanmamış.</p>'}
       </section>
       <section class="record-section"><div class="panel-heading"><h3>Antrenör notları</h3><button class="text-button" id="add-note">+ Not ekle</button></div>
-        \${records.notes.length ? \`<div class="record-list">\${records.notes.map(n=>\`<div class="note-card"><p>\${escapeHtml(n.note)}</p><small>\${new Date(n.created_at).toLocaleString('tr-TR')}</small></div>\`).join('')}</div>\` : '<p class="muted">Henüz not eklenmemiş.</p>'}
+        ${records.notes.length ? `<div class="record-list">${records.notes.map(n=>`<div class="note-card"><p>${escapeHtml(n.note)}</p><small>${new Date(n.created_at).toLocaleString('tr-TR')}</small></div>`).join('')}</div>` : '<p class="muted">Henüz not eklenmemiş.</p>'}
       </section>
       <div class="modal-actions"><button class="btn btn-ghost" id="close-profile">Kapat</button></div>
-    </article></div>\`;
+    </article></div>`;
     app.insertAdjacentHTML('beforeend', body);
     const close=()=>document.querySelector('#modal')?.remove();
     document.querySelector('#close-modal')?.addEventListener('click',close);
@@ -206,7 +206,7 @@ function showRecordForm(title, fields, save) {
   const modal=document.querySelector('#modal .modal');
   const form=document.createElement('form');
   form.className='inline-record-form';
-  form.innerHTML=\`<div class="modal-head"><h3>\${escapeHtml(title)}</h3><button type="button" class="icon-button" id="cancel-record">\${icon('close')}</button></div>\${fields.map(([name,label,type])=>\`<label>\${escapeHtml(label)}\${type==='textarea'? \`<textarea name="\${name}" rows="3" \${name==='note'||name==='title'?'required':''}></textarea>\`:\`<input name="\${name}" type="\${type}" \${type==='number'?'step="0.1" min="0"':''} \${name==='title'?'required':''}>\`}</label>\`).join('')}<div class="modal-actions"><button type="button" class="btn btn-ghost" id="cancel-record-2">Vazgeç</button><button class="btn btn-gold" type="submit">Kaydet</button></div>\`;
+  form.innerHTML=`<div class="modal-head"><h3>${escapeHtml(title)}</h3><button type="button" class="icon-button" id="cancel-record">${icon('close')}</button></div>${fields.map(([name,label,type])=>`<label>${escapeHtml(label)}${type==='textarea'? `<textarea name="${name}" rows="3" ${name==='note'||name==='title'?'required':''}></textarea>`:`<input name="${name}" type="${type}" ${type==='number'?'step="0.1" min="0"':''} ${name==='title'?'required':''}>`}</label>`).join('')}<div class="modal-actions"><button type="button" class="btn btn-ghost" id="cancel-record-2">Vazgeç</button><button class="btn btn-gold" type="submit">Kaydet</button></div>`;
   modal.append(form);
   const remove=()=>form.remove();
   form.querySelector('#cancel-record').addEventListener('click',remove);
