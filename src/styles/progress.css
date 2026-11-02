@@ -37,3 +37,7 @@ body.printing-client-report .trend-value{color:#b51229!important}
 .program-day-preview b{color:#ff6875}
 .program-day-preview span{color:var(--muted);line-height:1.5}
 @media(max-width:620px){.builder-section-head{align-items:flex-start;flex-direction:column}.exercise-fields{grid-template-columns:1fr 1fr}.program-builder-modal{padding:18px!important}}
+
+.program-card-actions{display:flex;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.program-card-actions .btn{flex:1}
+.danger-action{color:#ff6875;border-color:rgba(239,35,60,.25)}
