@@ -56,7 +56,7 @@ function shell(content) {
       <main class="main-area">
         <header class="topbar"><button class="icon-button mobile-menu" id="mobile-menu" aria-label="Menüyü aç">${icon('menu')}</button><div><span class="eyebrow">PERSONAL TRAINING MANAGEMENT</span><h1>${pageTitle()}</h1></div><div class="topbar-right"><span class="status-dot"></span><span class="topbar-status">Sistem hazır</span><div class="avatar">${initials(state.profile?.display_name || 'A')}</div></div></header>
         <section class="page-content">${content}</section>
-        <footer class="footer"><span>AUREX <span class="gold">●</span> by EB Digital Studio</span><span>Personal Training Management · V1</span></footer>
+        <footer class="footer"><span>AUREX <span class="gold">●</span> by EB Digital Studio</span><span>Personal Training Management · V1.1</span></footer>
       </main>
     </div>`;
   document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.view)));
@@ -95,7 +95,7 @@ function clientRows(clients) {
 }
 
 function clientsView() {
-  return `<div class="page-actions"><div><p class="muted">Danışan profillerini, hedeflerini ve durumlarını yönet.</p></div><button class="btn btn-gold" id="add-client">${icon('plus')} Yeni danışan</button></div><article class="panel">${clientRows(state.clients)}</article>`;
+  return `<div class="page-actions client-page-actions"><div><p class="muted">Danışan profillerini, hedeflerini ve durumlarını yönet.</p><div class="client-filters"><input id="client-search" type="search" placeholder="İsim veya hedef ara..." aria-label="Danışan ara"><select id="client-status-filter" aria-label="Duruma göre filtrele"><option value="all">Tüm durumlar</option><option value="active">Aktif</option><option value="paused">Duraklatıldı</option><option value="completed">Tamamlandı</option></select></div></div><button class="btn btn-gold" id="add-client">${icon('plus')} Yeni danışan</button></div><article class="panel">${clientRows(state.clients)}</article>`;
 }
 function clientModal() {
   return `<div class="modal-backdrop" id="modal"><form class="modal" id="client-form"><div class="modal-head"><div><span class="eyebrow">NEW CLIENT</span><h3>Danışan oluştur</h3></div><button type="button" class="icon-button" id="close-modal">${icon('close')}</button></div><label>Ad<input name="first_name" required maxlength="80" autocomplete="given-name"></label><label>Soyad<input name="last_name" required maxlength="80" autocomplete="family-name"></label><label>Doğum tarihi<input name="birth_date" type="date"></label><label>Branş / kategori<input name="sport" maxlength="100" placeholder="Örn. Futbol / Genel fitness"></label><label>Hedef<textarea name="goal" rows="2" maxlength="500" placeholder="Danışanın hedefi"></textarea></label><label>Seviye<select name="experience_level"><option value="beginner">Başlangıç</option><option value="intermediate">Orta</option><option value="advanced">İleri</option></select></label><div class="modal-actions"><button type="button" class="btn btn-ghost" id="cancel-modal">Vazgeç</button><button class="btn btn-gold" type="submit">Danışanı kaydet</button></div></form></div>`;
@@ -135,6 +135,9 @@ function bindModalClose() {
 function bindPageActions() {
   document.querySelectorAll('#add-client').forEach(b=>b.addEventListener('click',()=>{app.insertAdjacentHTML('beforeend',clientModal());bindModalClose();document.querySelector('#client-form').addEventListener('submit',saveClient);}));
   document.querySelectorAll('[data-client]').forEach(b=>b.addEventListener('click',()=>openClient(b.dataset.client)));
+  const filterClients=()=>{const q=(document.querySelector('#client-search')?.value||'').trim().toLocaleLowerCase('tr-TR');const status=document.querySelector('#client-status-filter')?.value||'all';document.querySelectorAll('tbody tr').forEach(row=>{const pill=row.querySelector('.pill');const rowStatus=pill?.textContent.trim()==='Aktif'?'active':'paused';const matchesText=row.textContent.toLocaleLowerCase('tr-TR').includes(q);const matchesStatus=status==='all'||status===rowStatus;row.hidden=!(matchesText&&matchesStatus);});};
+  document.querySelector('#client-search')?.addEventListener('input',filterClients);
+  document.querySelector('#client-status-filter')?.addEventListener('change',filterClients);
   document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.view)));
   document.querySelector('#add-program')?.addEventListener('click',()=>{if(!state.clients.length)return notify('Önce bir danışan eklemelisin.','error');app.insertAdjacentHTML('beforeend',programModal());bindModalClose();document.querySelector('#program-form').addEventListener('submit',saveProgram);});
   document.querySelector('#add-session')?.addEventListener('click',()=>{if(!state.clients.length)return notify('Önce bir danışan eklemelisin.','error');app.insertAdjacentHTML('beforeend',sessionModal());bindModalClose();document.querySelector('#session-form').addEventListener('submit',saveSession);});
