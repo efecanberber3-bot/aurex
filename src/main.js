@@ -123,6 +123,18 @@ function programExerciseSummary(program) {
 function programsView() {
   return `<div class="page-actions"><p class="muted">Danışanlara özel, gün ve hareket bazlı antrenman planları oluştur.</p><button class="btn btn-gold" id="add-program">${icon('plus')} Program oluştur</button></div><div class="program-grid">${state.programs.length?state.programs.map(p=>`<article class="panel program-card"><div class="program-symbol">${icon('dumbbell')}</div><span class="pill ${p.status==='active'?'green':'gray'}">${p.status==='active'?'Aktif':escapeHtml(p.status)}</span><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.objective||'Hedef belirtilmedi')}</p><small>${escapeHtml(p.client_name||'Danışan atanmadı')}</small>${programExerciseSummary(p)}<div class="program-card-actions"><button class="btn btn-ghost" data-edit-program="${p.id}">Düzenle</button><button class="btn btn-ghost danger-action" data-delete-program="${p.id}">Sil</button></div></article>`).join(''):'<article class="panel empty-state"><b>Henüz program yok</b><p>İlk antrenman programını oluştur.</p></article>'}</div>`;
 }
+function readExerciseRow(row) {
+  const value=name=>row.querySelector('[name="'+name+'"]')?.value ?? '';
+  return {
+    day_number:value('day_number'),
+    exercise_name:value('exercise_name'),
+    muscle_group:value('muscle_group'),
+    sets:value('sets'),
+    reps:value('reps'),
+    rest_seconds:value('rest_seconds'),
+    exercise_notes:value('exercise_notes')
+  };
+}
 function exerciseBuilderRow() {
   return `<div class="exercise-builder-row"><div class="exercise-row-top"><label>Antrenman günü<select name="day_number" required><option value="1">1. Gün</option><option value="2">2. Gün</option><option value="3">3. Gün</option><option value="4">4. Gün</option><option value="5">5. Gün</option><option value="6">6. Gün</option><option value="7">7. Gün</option></select></label><button type="button" class="text-button remove-exercise">Kaldır</button></div><label>Hareket adı<input name="exercise_name" required maxlength="120" placeholder="Örn. Bench Press"></label><div class="exercise-fields"><label>Bölge<input name="muscle_group" maxlength="60" placeholder="Göğüs"></label><label>Set<input name="sets" type="number" min="1" max="20" value="3" required></label><label>Tekrar<input name="reps" maxlength="30" value="10-12" required></label><label>Dinlenme (sn)<input name="rest_seconds" type="number" min="0" max="900" step="15" value="90"></label></div><label>Antrenör notu<input name="exercise_notes" maxlength="300" placeholder="Tempo, teknik veya özel talimat"></label></div>`;
 }
@@ -163,7 +175,7 @@ async function openProgramEditor(id) {
     const submit=form.querySelector('[type="submit"]');submit.disabled=true;submit.textContent='Güncelleniyor...';
     try{
       const data=Object.fromEntries(new FormData(form));
-      const exercises=[...list.querySelectorAll('.exercise-builder-row')].map(row=>({...Object.fromEntries(new FormData(row)),id:row.dataset.rowId||null,exercise_id:row.dataset.exerciseId||null}));
+      const exercises=[...list.querySelectorAll('.exercise-builder-row')].map(row=>({...readExerciseRow(row),id:row.dataset.rowId||null,exercise_id:row.dataset.exerciseId||null}));
       if(!exercises.length)throw new Error('En az bir hareket eklemelisin.');
       await updateProgramWithExercises(id,data,exercises);
       notify('Program başarıyla güncellendi.','success');await refreshData();render();
@@ -228,7 +240,7 @@ async function saveProgram(e) {
   try {
     const program=await createProgram(data);
     for(let i=0;i<rows.length;i++){
-      const values=Object.fromEntries(new FormData(rows[i]));
+      const values=readExerciseRow(rows[i]);
       const exercise=await createExercise({name:values.exercise_name,muscle_group:values.muscle_group,category:'strength'});
       await addProgramExercise({program_id:program.id,exercise_id:exercise.id,day_number:Number(values.day_number),order_number:i+1,sets:Number(values.sets),reps:values.reps.trim(),rest_seconds:values.rest_seconds===''?null:Number(values.rest_seconds),notes:values.exercise_notes?.trim()||null});
     }
