@@ -5,7 +5,7 @@ import './styles/progress.css';
 import { supabase, isConfigured } from './services/supabase.js';
 import { getSession, signIn, signUp, signOut, getProfile } from './services/auth.service.js';
 import { listClients, createClient, updateClientStatus, getClient } from './services/clients.service.js';
-import { listPrograms, createProgram, listExercises, addProgramExercise } from './services/workouts.service.js';
+import { listPrograms, createProgram, listExercises, addProgramExercise, createExercise } from './services/workouts.service.js';
 import { listSessions, createSession } from './services/sessions.service.js';
 import { getClientManagementData, saveClientAssessment, addClientGoal, addCoachNote } from './services/client-management.service.js';
 import { escapeHtml, formatDate, initials } from './utils/helpers.js';
@@ -111,11 +111,23 @@ function clientModal() {
   return `<div class="modal-backdrop" id="modal"><form class="modal" id="client-form"><div class="modal-head"><div><span class="eyebrow">NEW CLIENT</span><h3>Danışan oluştur</h3></div><button type="button" class="icon-button" id="close-modal">${icon('close')}</button></div><label>Ad<input name="first_name" required maxlength="80" autocomplete="given-name"></label><label>Soyad<input name="last_name" required maxlength="80" autocomplete="family-name"></label><label>Doğum tarihi<input name="birth_date" type="date"></label><label>Branş / kategori<input name="sport" maxlength="100" placeholder="Örn. Futbol / Genel fitness"></label><label>Hedef<textarea name="goal" rows="2" maxlength="500" placeholder="Danışanın hedefi"></textarea></label><label>Seviye<select name="experience_level"><option value="beginner">Başlangıç</option><option value="intermediate">Orta</option><option value="advanced">İleri</option></select></label><div class="modal-actions"><button type="button" class="btn btn-ghost" id="cancel-modal">Vazgeç</button><button class="btn btn-gold" type="submit">Danışanı kaydet</button></div></form></div>`;
 }
 
+function programExerciseSummary(program) {
+  const exercises=[...(program.program_exercises||[])].sort((a,b)=>a.day_number-b.day_number||a.order_number-b.order_number);
+  if(!exercises.length)return '<small class="muted">Hareket detayı bulunmuyor.</small>';
+  const days=[...new Set(exercises.map(x=>x.day_number))];
+  return '<div class="program-exercise-summary">'+days.map(day=>{
+    const items=exercises.filter(x=>x.day_number===day);
+    return '<div class="program-day-preview"><b>'+day+'. Gün</b><span>'+items.map(x=>escapeHtml(x.exercise_library?.name||'Hareket')+' · '+(x.sets||'—')+'×'+escapeHtml(x.reps||'—')).join(' / ')+'</span></div>';
+  }).join('')+'</div>';
+}
 function programsView() {
-  return `<div class="page-actions"><p class="muted">Danışanlara özel antrenman programları oluştur.</p><button class="btn btn-gold" id="add-program">${icon('plus')} Program oluştur</button></div><div class="program-grid">${state.programs.length?state.programs.map(p=>`<article class="panel program-card"><div class="program-symbol">${icon('dumbbell')}</div><span class="pill ${p.status==='active'?'green':'gray'}">${p.status}</span><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.objective || 'Hedef belirtilmedi')}</p><small>${escapeHtml(p.client_name || 'Danışan atanmadı')}</small></article>`).join(''):'<article class="panel empty-state"><b>Henüz program yok</b><p>İlk antrenman programını oluştur.</p></article>'}</div>`;
+  return `<div class="page-actions"><p class="muted">Danışanlara özel, gün ve hareket bazlı antrenman planları oluştur.</p><button class="btn btn-gold" id="add-program">${icon('plus')} Program oluştur</button></div><div class="program-grid">${state.programs.length?state.programs.map(p=>`<article class="panel program-card"><div class="program-symbol">${icon('dumbbell')}</div><span class="pill ${p.status==='active'?'green':'gray'}">${p.status==='active'?'Aktif':escapeHtml(p.status)}</span><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.objective||'Hedef belirtilmedi')}</p><small>${escapeHtml(p.client_name||'Danışan atanmadı')}</small>${programExerciseSummary(p)}</article>`).join(''):'<article class="panel empty-state"><b>Henüz program yok</b><p>İlk antrenman programını oluştur.</p></article>'}</div>`;
+}
+function exerciseBuilderRow() {
+  return `<div class="exercise-builder-row"><div class="exercise-row-top"><label>Antrenman günü<select name="day_number" required><option value="1">1. Gün</option><option value="2">2. Gün</option><option value="3">3. Gün</option><option value="4">4. Gün</option><option value="5">5. Gün</option><option value="6">6. Gün</option><option value="7">7. Gün</option></select></label><button type="button" class="text-button remove-exercise">Kaldır</button></div><label>Hareket adı<input name="exercise_name" required maxlength="120" placeholder="Örn. Bench Press"></label><div class="exercise-fields"><label>Bölge<input name="muscle_group" maxlength="60" placeholder="Göğüs"></label><label>Set<input name="sets" type="number" min="1" max="20" value="3" required></label><label>Tekrar<input name="reps" maxlength="30" value="10-12" required></label><label>Dinlenme (sn)<input name="rest_seconds" type="number" min="0" max="900" step="15" value="90"></label></div><label>Antrenör notu<input name="exercise_notes" maxlength="300" placeholder="Tempo, teknik veya özel talimat"></label></div>`;
 }
 function programModal() {
-  return `<div class="modal-backdrop" id="modal"><form class="modal" id="program-form"><div class="modal-head"><div><span class="eyebrow">WORKOUT BUILDER</span><h3>Program oluştur</h3></div><button type="button" class="icon-button" id="close-modal">${icon('close')}</button></div><label>Program adı<input name="name" required maxlength="120" placeholder="Örn. Kuvvet ve stabilite"></label><label>Danışan<select name="client_id" required>${state.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.first_name+' '+c.last_name)}</option>`).join('')}</select></label><label>Ana hedef<textarea name="objective" rows="2" maxlength="500"></textarea></label><label>Başlangıç tarihi<input name="start_date" type="date"></label><div class="modal-actions"><button type="button" class="btn btn-ghost" id="cancel-modal">Vazgeç</button><button class="btn btn-gold" type="submit">Programı kaydet</button></div></form></div>`;
+  return `<div class="modal-backdrop" id="modal"><form class="modal program-builder-modal" id="program-form"><div class="modal-head"><div><span class="eyebrow">AUREX WORKOUT BUILDER</span><h3>Yeni antrenman programı</h3></div><button type="button" class="icon-button" id="close-modal">${icon('close')}</button></div><div class="builder-section"><span class="builder-step">01 / PROGRAM BİLGİLERİ</span><label>Program adı<input name="name" required maxlength="120" placeholder="Örn. 4 Günlük Hipertrofi"></label><label>Danışan<select name="client_id" required>${state.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.first_name+' '+c.last_name)}</option>`).join('')}</select></label><label>Ana hedef<textarea name="objective" rows="2" maxlength="500" placeholder="Örn. Kas kütlesi kazanımı ve kuvvet gelişimi"></textarea></label><label>Başlangıç tarihi<input name="start_date" type="date"></label></div><div class="builder-section"><div class="builder-section-head"><div><span class="builder-step">02 / ANTRENMAN PLANI</span><h4>Hareketleri ekle</h4><p class="muted">Her hareket için gün, set, tekrar ve dinlenme süresini belirle.</p></div><button type="button" class="btn btn-ghost" id="add-exercise-row">${icon('plus')} Hareket ekle</button></div><div id="exercise-builder-list">${exerciseBuilderRow()}</div></div><div class="modal-actions"><button type="button" class="btn btn-ghost" id="cancel-modal">Vazgeç</button><button class="btn btn-gold" type="submit">Programı kaydet</button></div></form></div>`;
 }
 function sessionsView() {
   return `<div class="page-actions"><p class="muted">Planlanan ve tamamlanan özel ders kayıtları.</p><button class="btn btn-gold" id="add-session">${icon('plus')} Seans planla</button></div><article class="panel">${state.sessions.length?`<div class="table-wrap"><table><thead><tr><th>DANIŞAN</th><th>TARİH</th><th>SÜRE</th><th>DURUM</th></tr></thead><tbody>${state.sessions.map(s=>`<tr><td><b>${escapeHtml(s.client_name || 'Danışan')}</b></td><td>${formatDate(s.scheduled_at)}</td><td>${s.duration_minutes || '—'} dk</td><td><span class="pill ${s.status==='completed'?'green':'gray'}">${s.status==='completed'?'Tamamlandı':'Planlandı'}</span></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state"><b>Henüz seans kaydı yok</b><p>İlk seansını planla.</p></div>'}</article>`;
@@ -125,7 +137,7 @@ function sessionModal() {
 }
 function clientPortalView() {
   const me = state.clients[0];
-  return `<div class="welcome-row"><div><p class="muted">AUREX danışan alanına hoş geldin.</p><h2>${escapeHtml(state.profile?.display_name || 'Sporcu')}</h2><p class="muted">Antrenörün tarafından paylaşılan çalışmalarını buradan takip edebilirsin.</p></div></div><div class="stats-grid">${statCard('Programlarım',state.programs.length,'Atanmış program','dumbbell')}${statCard('Seanslarım',state.sessions.length,'Kayıtlı seans','calendar')}</div><div class="content-grid"><article class="panel"><div class="panel-heading"><h3>Programlarım</h3></div>${state.programs.length?state.programs.map(p=>`<div class="session-row"><div class="program-symbol">${icon('dumbbell')}</div><div><b>${escapeHtml(p.name)}</b><small>${escapeHtml(p.objective||'')}</small></div></div>`).join(''):'<div class="empty-state compact">Henüz program atanmadı.</div>'}</article><article class="panel"><div class="panel-heading"><h3>Son seanslarım</h3></div>${state.sessions.length?state.sessions.map(s=>`<div class="session-row"><div class="date-chip">${new Date(s.scheduled_at).toLocaleDateString('tr-TR',{day:'2-digit',month:'short'})}</div><div><b>${formatDate(s.scheduled_at)}</b><small>${s.duration_minutes||'—'} dakika</small></div></div>`).join(''):'<div class="empty-state compact">Henüz seans kaydı yok.</div>'}</article></div>`;
+  return `<div class="welcome-row"><div><p class="muted">AUREX danışan alanına hoş geldin.</p><h2>${escapeHtml(state.profile?.display_name || 'Sporcu')}</h2><p class="muted">Antrenörün tarafından paylaşılan çalışmalarını buradan takip edebilirsin.</p></div></div><div class="stats-grid">${statCard('Programlarım',state.programs.length,'Atanmış program','dumbbell')}${statCard('Seanslarım',state.sessions.length,'Kayıtlı seans','calendar')}</div><div class="content-grid"><article class="panel"><div class="panel-heading"><h3>Programlarım</h3></div>${state.programs.length?state.programs.map(p=>`<div class="session-row"><div class="program-symbol">${icon('dumbbell')}</div><div><b>${escapeHtml(p.name)}</b><small>${escapeHtml(p.objective||'')}</small>${programExerciseSummary(p)}</div></div>`).join(''):'<div class="empty-state compact">Henüz program atanmadı.</div>'}</article><article class="panel"><div class="panel-heading"><h3>Son seanslarım</h3></div>${state.sessions.length?state.sessions.map(s=>`<div class="session-row"><div class="date-chip">${new Date(s.scheduled_at).toLocaleDateString('tr-TR',{day:'2-digit',month:'short'})}</div><div><b>${formatDate(s.scheduled_at)}</b><small>${s.duration_minutes||'—'} dakika</small></div></div>`).join(''):'<div class="empty-state compact">Henüz seans kaydı yok.</div>'}</article></div>`;
 }
 function render() {
   if (!state.session) return renderAuth();
@@ -149,7 +161,7 @@ function bindPageActions() {
   document.querySelector('#client-search')?.addEventListener('input',filterClients);
   document.querySelector('#client-status-filter')?.addEventListener('change',filterClients);
   document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.view)));
-  document.querySelector('#add-program')?.addEventListener('click',()=>{if(!state.clients.length)return notify('Önce bir danışan eklemelisin.','error');app.insertAdjacentHTML('beforeend',programModal());bindModalClose();document.querySelector('#program-form').addEventListener('submit',saveProgram);});
+  document.querySelector('#add-program')?.addEventListener('click',()=>{if(!state.clients.length)return notify('Önce bir danışan eklemelisin.','error');app.insertAdjacentHTML('beforeend',programModal());bindModalClose();const form=document.querySelector('#program-form');form.addEventListener('submit',saveProgram);document.querySelector('#add-exercise-row')?.addEventListener('click',()=>document.querySelector('#exercise-builder-list').insertAdjacentHTML('beforeend',exerciseBuilderRow()));document.querySelector('#exercise-builder-list')?.addEventListener('click',e=>{if(e.target.closest('.remove-exercise')){const rows=document.querySelectorAll('.exercise-builder-row');if(rows.length===1)return notify('Programda en az bir hareket kalmalı.','error');e.target.closest('.exercise-builder-row').remove();}});});
   document.querySelector('#add-session')?.addEventListener('click',()=>{if(!state.clients.length)return notify('Önce bir danışan eklemelisin.','error');app.insertAdjacentHTML('beforeend',sessionModal());bindModalClose();document.querySelector('#session-form').addEventListener('submit',saveSession);});
 }
 async function saveClient(e) {
@@ -158,9 +170,20 @@ async function saveClient(e) {
   catch(err){notify(err.message,'error');}
 }
 async function saveProgram(e) {
-  e.preventDefault(); const data=Object.fromEntries(new FormData(e.currentTarget));
-  try { await createProgram(data); notify('Program oluşturuldu.','success'); await refreshData(); render(); }
-  catch(err){notify(err.message,'error');}
+  e.preventDefault();
+  const form=e.currentTarget,data=Object.fromEntries(new FormData(form));
+  const rows=[...form.querySelectorAll('.exercise-builder-row')];
+  if(!rows.length)return notify('En az bir hareket eklemelisin.','error');
+  const submit=form.querySelector('button[type="submit"]');submit.disabled=true;submit.textContent='Program kaydediliyor...';
+  try {
+    const program=await createProgram(data);
+    for(let i=0;i<rows.length;i++){
+      const values=Object.fromEntries(new FormData(rows[i]));
+      const exercise=await createExercise({name:values.exercise_name,muscle_group:values.muscle_group,category:'strength'});
+      await addProgramExercise({program_id:program.id,exercise_id:exercise.id,day_number:Number(values.day_number),order_number:i+1,sets:Number(values.sets),reps:values.reps.trim(),rest_seconds:values.rest_seconds===''?null:Number(values.rest_seconds),notes:values.exercise_notes?.trim()||null});
+    }
+    notify('Program ve '+rows.length+' hareket başarıyla kaydedildi.','success');await refreshData();render();
+  } catch(err){notify('Kayıt sırasında hata: '+err.message+' Program kaydı oluşmuş olabilir; kontrol et.','error');submit.disabled=false;submit.textContent='Tekrar dene';}
 }
 async function saveSession(e) {
   e.preventDefault(); const data=Object.fromEntries(new FormData(e.currentTarget));
