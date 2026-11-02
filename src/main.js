@@ -89,6 +89,15 @@ function dashboardView() {
     <div class="content-grid"><article class="panel"><div class="panel-heading"><div><span class="eyebrow">CLIENT MANAGEMENT</span><h3>Son danışanlar</h3></div><button class="text-button" data-view="clients">Tümünü gör ${icon('arrow')}</button></div>${clientRows(state.clients.slice(0,5))}</article><article class="panel"><div class="panel-heading"><div><span class="eyebrow">SCHEDULE</span><h3>Yaklaşan seanslar</h3></div></div>${upcoming.length?upcoming.map(s=>`<div class="session-row"><div class="date-chip">${new Date(s.scheduled_at).toLocaleDateString('tr-TR',{day:'2-digit',month:'short'})}</div><div><b>${escapeHtml(s.client_name || 'Danışan')}</b><small>${formatDate(s.scheduled_at)} · ${escapeHtml(s.status)}</small></div></div>`).join(''):'<div class="empty-state compact">Henüz planlanmış seans yok.</div>'}</article></div>`;
 }
 
+function renderTrendChart(title, unit, rows) {
+  const points=rows.filter(x=>Number.isFinite(Number(x.value))).slice(0,12).reverse();
+  if(points.length<2) return '<article class="trend-card"><div class="trend-title"><b>'+escapeHtml(title)+'</b><small>'+(points.length?'1 kayıt · Grafik için en az 2 kayıt gerekli':'Henüz veri yok')+'</small></div><div class="trend-empty">En az iki ölçüm kaydedildiğinde grafik burada görünecek.</div></article>';
+  const values=points.map(x=>Number(x.value)), min=Math.min(...values), max=Math.max(...values), spread=max-min||Math.max(max*.08,1);
+  const coords=values.map((v,i)=>({x:18+i*(304/(values.length-1)),y:84-((v-min)/spread)*62}));
+  const line=coords.map(p=>p.x+','+p.y).join(' '), last=values[values.length-1], delta=last-values[0];
+  return '<article class="trend-card"><div class="trend-title"><b>'+escapeHtml(title)+'</b><span class="trend-value">'+last.toFixed(1)+' '+escapeHtml(unit)+'</span></div><svg class="trend-chart" viewBox="0 0 340 112" role="img" aria-label="'+escapeHtml(title)+' gelişim grafiği"><path d="M18 22H322M18 53H322M18 84H322" stroke="rgba(255,255,255,.08)" stroke-dasharray="3 5"/><polyline points="'+line+'" fill="none" stroke="#ef233c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="'+coords[coords.length-1].x+'" cy="'+coords[coords.length-1].y+'" r="4" fill="#ff6875"/></svg><div class="trend-meta"><small>'+new Date(points[0].date).toLocaleDateString('tr-TR')+'</small><small>'+(delta>0?'+':'')+delta.toFixed(1)+' '+escapeHtml(unit)+' toplam değişim</small><small>'+new Date(points[points.length-1].date).toLocaleDateString('tr-TR')+'</small></div></article>';
+}
+function progressReportPrint(){document.body.classList.add('printing-client-report');window.print();setTimeout(()=>document.body.classList.remove('printing-client-report'),800);}
 function clientRows(clients) {
   if (!clients.length) return '<div class="empty-state"><div class="empty-icon">＋</div><b>Henüz danışan yok</b><p>İlk danışanını ekleyerek takip sistemini başlat.</p></div>';
   return `<div class="table-wrap"><table><thead><tr><th>DANIŞAN</th><th>HEDEF</th><th>DURUM</th><th></th></tr></thead><tbody>${clients.map(c=>`<tr><td><div class="person-cell"><div class="avatar small">${initials(c.first_name+' '+c.last_name)}</div><div><b>${escapeHtml(c.first_name+' '+c.last_name)}</b><small>${escapeHtml(c.sport || 'Genel fitness')}</small></div></div></td><td>${escapeHtml(c.goal || 'Belirtilmedi')}</td><td><span class="pill ${c.status==='active'?'green':'gray'}">${c.status==='active'?'Aktif':c.status==='paused'?'Duraklatıldı':'Tamamlandı'}</span></td><td><button class="row-action" data-client="${c.id}">İncele ${icon('arrow')}</button></td></tr>`).join('')}</tbody></table></div>`;
@@ -163,6 +172,10 @@ async function openClient(id) {
     const [c, records] = await Promise.all([getClient(id), getClientManagementData(id)]);
     const metricLabel = key => ({waist_cm:'Bel',body_fat_pct:'Yağ oranı',chest_cm:'Göğüs',arm_cm:'Kol',leg_cm:'Bacak'}[key] || key);
     const latest = records.assessments[0];
+    const weightHistory=records.assessments.filter(a=>a.weight_kg!=null).map(a=>({value:Number(a.weight_kg),date:a.assessed_at}));
+    const metricHistory=key=>records.progress.filter(p=>p.metric_key===key).map(p=>({value:Number(p.metric_value),date:p.recorded_at}));
+    const metricCharts=[renderTrendChart('Kilo gelişimi','kg',weightHistory),renderTrendChart('Bel çevresi','cm',metricHistory('waist_cm')),renderTrendChart('Yağ oranı','%',metricHistory('body_fat_pct')),renderTrendChart('Göğüs ölçüsü','cm',metricHistory('chest_cm'))].join('');
+    const allHistory=[...weightHistory.map(x=>({...x,label:'Kilo',unit:'kg'})),...records.progress.map(x=>({value:Number(x.metric_value),date:x.recorded_at,label:metricLabel(x.metric_key),unit:x.unit||''}))].sort((a,b)=>new Date(b.date)-new Date(a.date));
     const body = `<div class="modal-backdrop" id="modal"><article class="modal client-profile-modal">
       <div class="modal-head"><div><span class="eyebrow">CLIENT PROFILE</span><h3>${escapeHtml(c.first_name+' '+c.last_name)}</h3></div><button class="icon-button" id="close-modal">${icon('close')}</button></div>
       <div class="profile-detail-grid">
@@ -172,11 +185,12 @@ async function openClient(id) {
         <div><small>Durum</small><b>${c.status==='active'?'Aktif':c.status==='paused'?'Duraklatıldı':'Tamamlandı'}</b></div>
       </div>
       <div class="profile-toolbar"><span class="muted">Hesap: ${c.auth_user_id?'Bağlı':'Henüz bağlanmadı'}</span>
-        <button class="btn btn-ghost" id="toggle-client-status">${c.status==='active'?'Danışanı duraklat':'Danışanı aktifleştir'}</button></div>
+        <div class="profile-toolbar-actions"><button class="btn btn-ghost" id="print-client-report">Gelişim raporu</button><button class="btn btn-ghost" id="toggle-client-status">${c.status==='active'?'Danışanı duraklat':'Danışanı aktifleştir'}</button></div></div>
       <section class="record-section"><div class="panel-heading"><h3>Son değerlendirme</h3><button class="text-button" id="add-assessment">+ Ölçüm ekle</button></div>
         ${latest ? `<div class="metric-grid"><div><small>Boy</small><b>${latest.height_cm ?? '—'} cm</b></div><div><small>Kilo</small><b>${latest.weight_kg ?? '—'} kg</b></div><div><small>Değerlendirme</small><b>${new Date(latest.assessed_at).toLocaleDateString('tr-TR')}</b></div></div><p class="muted">${escapeHtml(latest.fitness_notes||'Not eklenmemiş.')}</p>` : '<p class="muted">Henüz ölçüm kaydı yok.</p>'}
         ${records.progress.length ? `<div class="record-list">${records.progress.map(p=>`<div class="record-row"><span>${escapeHtml(metricLabel(p.metric_key))}</span><b>${p.metric_value} ${escapeHtml(p.unit||'')}</b><small>${new Date(p.recorded_at).toLocaleDateString('tr-TR')}</small></div>`).join('')}</div>` : ''}
       </section>
+      <section class="record-section progress-report"><div class="panel-heading"><div><span class="eyebrow">PROGRESS ANALYTICS</span><h3>Gelişim analizi</h3></div><span class="muted">${allHistory.length} ölçüm kaydı</span></div><div class="trend-grid">${metricCharts}</div><div class="record-section"><div class="panel-heading"><h3>Ölçüm geçmişi</h3></div>${allHistory.length?'<div class="table-wrap"><table class="history-table"><thead><tr><th>TARİH</th><th>ÖLÇÜM</th><th>DEĞER</th></tr></thead><tbody>'+allHistory.map(x=>'<tr><td>'+new Date(x.date).toLocaleDateString('tr-TR')+'</td><td>'+escapeHtml(x.label)+'</td><td><b>'+x.value+' '+escapeHtml(x.unit)+'</b></td></tr>').join('')+'</tbody></table></div>':'<p class="muted">Henüz ölçüm geçmişi bulunmuyor.</p>'}</div></section>
       <section class="record-section"><div class="panel-heading"><h3>Hedefler</h3><button class="text-button" id="add-goal">+ Hedef ekle</button></div>
         ${records.goals.length ? `<div class="record-list">${records.goals.map(g=>`<div class="record-row goal-row"><div><b>${escapeHtml(g.title)}</b><small>${escapeHtml(g.description||'')}</small></div><span class="pill ${g.status==='active'?'green':'gray'}">${g.status==='active'?'Aktif':escapeHtml(g.status)}</span></div>`).join('')}</div>` : '<p class="muted">Henüz hedef tanımlanmamış.</p>'}
       </section>
@@ -189,6 +203,7 @@ async function openClient(id) {
     const close=()=>document.querySelector('#modal')?.remove();
     document.querySelector('#close-modal')?.addEventListener('click',close);
     document.querySelector('#close-profile')?.addEventListener('click',close);
+    document.querySelector('#print-client-report')?.addEventListener('click',progressReportPrint);
     document.querySelector('#modal')?.addEventListener('click',e=>{if(e.target.id==='modal')close();});
     document.querySelector('#toggle-client-status')?.addEventListener('click',async()=>{
       try { await updateClientStatus(id,c.status==='active'?'paused':'active'); notify('Danışan durumu güncellendi.','success'); await refreshData(); close(); render(); }
