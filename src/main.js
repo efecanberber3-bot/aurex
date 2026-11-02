@@ -2,6 +2,7 @@ import './styles/tokens.css';
 import './styles/global.css';
 import './styles/app.css';
 import './styles/progress.css';
+import './styles/nutrition.css';
 import { supabase, isConfigured } from './services/supabase.js';
 import { getSession, signIn, signUp, signOut, getProfile } from './services/auth.service.js';
 import { listClients, createClient, updateClientStatus, getClient } from './services/clients.service.js';
@@ -12,7 +13,7 @@ import { getNutritionData, saveNutritionEntry, deleteNutritionEntry, saveNutriti
 import { escapeHtml, formatDate, initials } from './utils/helpers.js';
 
 const app = document.querySelector('#app');
-let state = { session: null, profile: null, clients: [], programs: [], sessions: [], view: 'dashboard', selectedClient: null, loading: false, nutritionData: null, nutritionDate: new Date().toLocaleDateString('en-CA'), nutritionClient: null };
+let state = { session: null, profile: null, clients: [], programs: [], sessions: [], view: 'dashboard', selectedClient: null, loading: false, nutritionData: null, nutritionDate: localToday(), nutritionClient: null };
 
 function notify(message, type = 'info') {
   const node = document.createElement('div');
