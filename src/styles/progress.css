@@ -20,3 +20,20 @@ body.printing-client-report .modal-head button,body.printing-client-report .prof
 body.printing-client-report .record-section{break-inside:avoid}
 body.printing-client-report .trend-value{color:#b51229!important}
 }
+/* AUREX workout builder */
+.program-builder-modal{max-width:760px!important}
+.builder-section{padding:17px 0;border-top:1px solid var(--line);display:grid;gap:12px}
+.builder-step{font-size:9px;letter-spacing:1.5px;font-weight:800;color:#ff6875}
+.builder-section h4{margin:5px 0;font-size:16px}
+.builder-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.exercise-builder-row{padding:14px;margin:12px 0;background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:12px;display:grid;gap:10px}
+.exercise-row-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.exercise-row-top label{max-width:190px}
+.exercise-fields{display:grid;grid-template-columns:1.3fr .7fr 1fr 1fr;gap:9px}
+.exercise-builder-row label{font-size:11px}
+.exercise-builder-row input,.exercise-builder-row select{margin-top:5px}
+.program-exercise-summary{display:grid;gap:7px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}
+.program-day-preview{display:grid;gap:3px;font-size:10px}
+.program-day-preview b{color:#ff6875}
+.program-day-preview span{color:var(--muted);line-height:1.5}
+@media(max-width:620px){.builder-section-head{align-items:flex-start;flex-direction:column}.exercise-fields{grid-template-columns:1fr 1fr}.program-builder-modal{padding:18px!important}}
