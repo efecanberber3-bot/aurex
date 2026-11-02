@@ -1,0 +1,22 @@
+.profile-toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}
+.trend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.trend-card{min-width:0;padding:15px;background:linear-gradient(145deg,#191a1e,#111214);border:1px solid var(--line);border-radius:12px}
+.trend-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.trend-title b{font-size:12px}
+.trend-title small,.trend-meta{font-size:10px;color:var(--muted)}
+.trend-value{font-size:16px;font-weight:750;color:#ff6875}
+.trend-chart{width:100%;height:auto;display:block;margin-top:10px;overflow:visible}
+.trend-meta{display:flex;justify-content:space-between;gap:5px}
+.trend-empty{padding:24px 8px 10px;color:var(--muted);font-size:11px;line-height:1.6}
+.history-table td,.history-table th{padding:10px 12px}
+@media(max-width:520px){.trend-grid{grid-template-columns:1fr}.profile-toolbar-actions{width:100%}.profile-toolbar-actions .btn{flex:1}}
+@media print{
+body.printing-client-report #app>*:not(#modal){display:none!important}
+body.printing-client-report #modal{position:static!important;display:block!important;background:#fff!important;padding:0!important}
+body.printing-client-report #modal .modal{width:100%!important;max-width:none!important;max-height:none!important;overflow:visible!important;background:#fff!important;color:#111!important;border:0!important;box-shadow:none!important}
+body.printing-client-report .profile-detail-grid>div,body.printing-client-report .trend-card,body.printing-client-report .record-row,body.printing-client-report .note-card{background:#f5f5f5!important;color:#111!important}
+body.printing-client-report .muted,body.printing-client-report small,body.printing-client-report .eyebrow{color:#555!important}
+body.printing-client-report .modal-head button,body.printing-client-report .profile-toolbar,body.printing-client-report .record-section .text-button,body.printing-client-report .modal-actions{display:none!important}
+body.printing-client-report .record-section{break-inside:avoid}
+body.printing-client-report .trend-value{color:#b51229!important}
+}
