@@ -8,10 +8,11 @@ import { listClients, createClient, updateClientStatus, getClient } from './serv
 import { listPrograms, createProgram, listExercises, addProgramExercise, createExercise, updateProgramWithExercises, deleteProgram } from './services/workouts.service.js';
 import { listSessions, createSession } from './services/sessions.service.js';
 import { getClientManagementData, saveClientAssessment, addClientGoal, addCoachNote } from './services/client-management.service.js';
+import { getNutritionData, saveNutritionEntry, deleteNutritionEntry, saveNutritionTarget } from './services/nutrition.service.js';
 import { escapeHtml, formatDate, initials } from './utils/helpers.js';
 
 const app = document.querySelector('#app');
-let state = { session: null, profile: null, clients: [], programs: [], sessions: [], view: 'dashboard', selectedClient: null, loading: false };
+let state = { session: null, profile: null, clients: [], programs: [], sessions: [], view: 'dashboard', selectedClient: null, loading: false, nutritionData: null, nutritionDate: new Date().toLocaleDateString('en-CA'), nutritionClient: null };
 
 function notify(message, type = 'info') {
   const node = document.createElement('div');
@@ -41,8 +42,8 @@ function icon(name) {
 function shell(content) {
   const trainer = state.profile?.role === 'trainer' || state.profile?.role === 'admin';
   const links = trainer
-    ? [['dashboard','Genel Bakış','grid'],['clients','Danışanlar','users'],['programs','Programlar','dumbbell'],['sessions','Seanslar','calendar']]
-    : [['portal','Panelim','grid'],['my-programs','Programım','dumbbell'],['my-sessions','Seanslarım','calendar']];
+    ? [['dashboard','Genel Bakış','grid'],['clients','Danışanlar','users'],['programs','Programlar','dumbbell'],['sessions','Seanslar','calendar'],['nutrition','Beslenme','activity']]
+    : [['portal','Panelim','grid'],['my-programs','Programım','dumbbell'],['my-sessions','Seanslarım','calendar'],['nutrition','Beslenmem','activity']];
   app.innerHTML = `
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
@@ -65,9 +66,9 @@ function shell(content) {
   document.querySelector('#mobile-menu')?.addEventListener('click',()=>document.querySelector('#sidebar').classList.toggle('open'));
 }
 function pageTitle() {
-  return ({dashboard:'Genel Bakış',clients:'Danışan Yönetimi',programs:'Antrenman Programları',sessions:'Seans Takibi',portal:'Danışan Paneli','my-programs':'Antrenman Programım','my-sessions':'Seans Geçmişim'})[state.view] || 'Genel Bakış';
+  return ({dashboard:'Genel Bakış',clients:'Danışan Yönetimi',programs:'Antrenman Programları',sessions:'Seans Takibi',nutrition:'Beslenme Takibi',portal:'Danışan Paneli','my-programs':'Antrenman Programım','my-sessions':'Seans Geçmişim'})[state.view] || 'Genel Bakış';
 }
-function navigate(view) { state.view=view; location.hash=view; render(); }
+function navigate(view) { state.view=view; location.hash=view; render(); if(view==='nutrition') loadNutrition(); }
 function statCard(label,value,caption,ico) { return `<article class="stat-card"><div class="stat-top"><span>${label}</span><span class="stat-icon">${icon(ico)}</span></div><strong>${value}</strong><small>${caption}</small></article>`; }
 
 async function refreshData() {
@@ -76,7 +77,7 @@ async function refreshData() {
     const [clients,programs,sessions] = await Promise.all([listClients(),listPrograms(),listSessions()]);
     state.clients=clients; state.programs=programs; state.sessions=sessions;
   } else {
-    state.clients = [];
+    state.clients = await listClients();
     state.programs = await listPrograms();
     state.sessions = await listSessions();
   }
@@ -195,6 +196,67 @@ function sessionsView() {
 function sessionModal() {
   return `<div class="modal-backdrop" id="modal"><form class="modal" id="session-form"><div class="modal-head"><div><span class="eyebrow">SESSION PLANNER</span><h3>Seans planla</h3></div><button type="button" class="icon-button" id="close-modal">${icon('close')}</button></div><label>Danışan<select name="client_id" required>${state.clients.map(c=>`<option value="${c.id}">${escapeHtml(c.first_name+' '+c.last_name)}</option>`).join('')}</select></label><label>Tarih ve saat<input name="scheduled_at" type="datetime-local" required></label><label>Süre (dakika)<input name="duration_minutes" type="number" min="10" max="240" value="60"></label><div class="modal-actions"><button type="button" class="btn btn-ghost" id="cancel-modal">Vazgeç</button><button class="btn btn-gold" type="submit">Seansı kaydet</button></div></form></div>`;
 }
+function localToday() { return new Date().toLocaleDateString('en-CA'); }
+function nutritionClientId() {
+  if (['trainer','admin'].includes(state.profile?.role)) return state.nutritionClient || state.clients[0]?.id || null;
+  return state.clients[0]?.id || null;
+}
+async function loadNutrition() {
+  const clientId=nutritionClientId();
+  if(!clientId){state.nutritionData=null;render();return;}
+  try { state.nutritionDate=state.nutritionDate||localToday(); state.nutritionData=await getNutritionData(clientId,state.nutritionDate); render(); }
+  catch(err){notify('Beslenme verileri yüklenemedi: '+err.message,'error');}
+}
+function nutritionView() {
+  const trainer=['trainer','admin'].includes(state.profile?.role);
+  const clientId=nutritionClientId();
+  const date=state.nutritionDate||localToday();
+  const clientOptions=trainer?state.clients.map(x=>'<option value="'+x.id+'" '+(x.id===clientId?'selected':'')+'>'+escapeHtml(x.first_name+' '+x.last_name)+'</option>').join(''):'';
+  if(!clientId) return '<div class="empty-state"><b>Beslenme takibi için danışan hesabı eşleştirilmeli</b><p>Hesabın antrenör tarafından bir danışan profiline bağlandığında kayıt yapabilirsin.</p></div>';
+  const data=state.nutritionData||{entries:[],target:{calories:2200,protein_g:150,carbs_g:250,fat_g:70,water_ml:2500}};
+  const totals=data.entries.filter(x=>x.entry_type==='food').reduce((a,x)=>({calories:a.calories+Number(x.calories||0),protein:a.protein+Number(x.protein_g||0),carbs:a.carbs+Number(x.carbs_g||0),fat:a.fat+Number(x.fat_g||0)}),{calories:0,protein:0,carbs:0,fat:0});
+  const water=data.entries.filter(x=>x.entry_type==='drink'&&/(su|water)/i.test(x.name)).reduce((a,x)=>a+Number(x.amount_ml||0),0);
+  const bar=(label,value,target,unit)=>'<div class="nutrition-progress"><div><span>'+label+'</span><b>'+Math.round(value)+' / '+target+' '+unit+'</b></div><div class="nutrition-track"><i style="width:'+Math.min(100,target?value/target*100:0)+'%"></i></div></div>';
+  const meals=[['breakfast','Kahvaltı'],['lunch','Öğle'],['dinner','Akşam'],['snack','Ara öğün']];
+  const entryCard=x=>'<div class="nutrition-entry"><div class="nutrition-entry-main"><b>'+escapeHtml(x.name)+'</b><small>'+(x.entry_type==='food'?({breakfast:'Kahvaltı',lunch:'Öğle',dinner:'Akşam',snack:'Ara öğün'}[x.meal_type]+' · '+x.amount_g+' g'):(x.amount_ml+' ml'))+'</small></div><div class="nutrition-entry-meta"><b>'+Math.round(x.calories||0)+' kcal</b><small>'+(x.entry_type==='food'?'P '+x.protein_g+' · K '+x.carbs_g+' · Y '+x.fat_g:'İçecek')+'</small></div><div class="nutrition-entry-actions"><button class="text-button" data-edit-nutrition="'+x.id+'">Düzenle</button><button class="text-button danger-action" data-delete-nutrition="'+x.id+'">Sil</button></div></div>';
+  return '<div class="nutrition-toolbar">'+(trainer?'<label>Danışan<select id="nutrition-client">'+clientOptions+'</select></label>':'<p class="muted">Günlük beslenme ve sıvı tüketimini buradan kaydet.</p>')+'<label>Tarih<input id="nutrition-date" type="date" value="'+date+'"></label><button class="btn btn-gold" id="add-nutrition-entry">'+icon('plus')+' Kayıt ekle</button></div>'+
+  '<div class="nutrition-hero"><div><span class="eyebrow">DAILY NUTRITION</span><h2>Günün özeti</h2><p class="muted">Beslenme hedeflerine ne kadar yaklaştığını takip et.</p></div><div class="nutrition-water"><span>SU TÜKETİMİ</span><strong>'+water.toLocaleString('tr-TR')+' <small>/ '+Number(data.target.water_ml).toLocaleString('tr-TR')+' ml</small></strong>'+bar('Günlük su',water,data.target.water_ml,'ml')+'</div></div>'+
+  '<div class="stats-grid nutrition-stats">'+statCard('Kalori',Math.round(totals.calories)+' kcal','Günlük enerji','activity')+statCard('Protein',Math.round(totals.protein)+' g','Kas gelişimi','chart')+statCard('Karbonhidrat',Math.round(totals.carbs)+' g','Günlük karbonhidrat','activity')+statCard('Yağ',Math.round(totals.fat)+' g','Günlük yağ','chart')+'</div>'+
+  '<div class="panel nutrition-target-panel"><div class="panel-heading"><div><span class="eyebrow">DAILY TARGETS</span><h3>Hedef ilerlemesi</h3></div>'+(trainer?'<button class="text-button" id="edit-nutrition-target">Hedefleri düzenle</button>':'')+'</div><div class="nutrition-progress-grid">'+bar('Kalori',totals.calories,data.target.calories,'kcal')+bar('Protein',totals.protein,data.target.protein_g,'g')+bar('Karbonhidrat',totals.carbs,data.target.carbs_g,'g')+bar('Yağ',totals.fat,data.target.fat_g,'g')+'</div></div>'+
+  '<div class="panel nutrition-log-panel"><div class="panel-heading"><div><span class="eyebrow">FOOD & DRINK LOG</span><h3>Günlük kayıtlar</h3></div><span class="pill gray">'+data.entries.length+' kayıt</span></div>'+
+  (data.entries.length?meals.map(([key,label])=>{const rows=data.entries.filter(x=>x.entry_type==='food'&&x.meal_type===key);return rows.length?'<section class="nutrition-meal"><h4>'+label+'</h4>'+rows.map(entryCard).join('')+'</section>':''}).join(''):'')+
+  (data.entries.some(x=>x.entry_type==='drink')?'<section class="nutrition-meal"><h4>İçecekler</h4>'+data.entries.filter(x=>x.entry_type==='drink').map(entryCard).join('')+'</section>':'')+
+  (data.entries.length?'':'<div class="empty-state compact"><b>Bugün henüz kayıt yok</b><p>İlk öğününü veya içeceğini ekleyerek başla.</p></div>')+'</div>';
+}
+function nutritionEntryModal(entry=null) {
+  const type=entry?.entry_type||'food';
+  return '<div class="modal-backdrop" id="modal"><form class="modal nutrition-modal" id="nutrition-form"><div class="modal-head"><div><span class="eyebrow">AUREX DAILY NUTRITION</span><h3>'+(entry?'Kaydı düzenle':'Beslenme kaydı ekle')+'</h3></div><button type="button" class="icon-button" id="close-modal">'+icon('close')+'</button></div>'+
+  '<label>Kayıt türü<select name="entry_type" id="nutrition-entry-type"><option value="food" '+(type==='food'?'selected':'')+'>Yiyecek</option><option value="drink" '+(type==='drink'?'selected':'')+'>İçecek</option></select></label>'+
+  '<label>Ad<input name="name" required maxlength="120" value="'+escapeHtml(entry?.name||'')+'" placeholder="Örn. Tavuk ve pilav"></label>'+
+  '<div id="nutrition-food-fields" '+(type==='drink'?'hidden':'')+'><label>Öğün<select name="meal_type"><option value="breakfast">Kahvaltı</option><option value="lunch">Öğle</option><option value="dinner">Akşam</option><option value="snack">Ara öğün</option></select></label><label>Miktar (gram)<input name="amount_g" type="number" min="1" max="20000" step="1" value="'+(entry?.amount_g??150)+'"></label><div class="nutrition-form-grid"><label>Kalori (kcal)<input name="calories" type="number" min="0" max="10000" value="'+(entry?.calories??0)+'"></label><label>Protein (g)<input name="protein_g" type="number" min="0" step=".1" value="'+(entry?.protein_g??0)+'"></label><label>Karbonhidrat (g)<input name="carbs_g" type="number" min="0" step=".1" value="'+(entry?.carbs_g??0)+'"></label><label>Yağ (g)<input name="fat_g" type="number" min="0" step=".1" value="'+(entry?.fat_g??0)+'"></label></div></div>'+
+  '<div id="nutrition-drink-fields" '+(type==='food'?'hidden':'')+'><label>Miktar (ml)<input name="amount_ml" type="number" min="1" max="20000" value="'+(entry?.amount_ml??500)+'"></label><p class="muted">Su kaydı su hedefine eklenir. Kahve, çay ve diğer içecekler kalori bilgisiyle kaydedilebilir.</p><label>Kalori (kcal)<input name="drink_calories" id="drink-calories" type="number" min="0" max="10000" value="'+(type==='drink'?entry?.calories??0:0)+'"></label></div>'+
+  '<label>Tarih<input name="entry_date" type="date" required value="'+(entry?.entry_date||state.nutritionDate)+'"></label><label>Not (isteğe bağlı)<textarea name="notes" rows="2">'+escapeHtml(entry?.notes||'')+'</textarea></label>'+
+  '<div class="modal-actions"><button type="button" class="btn btn-ghost" id="cancel-modal">Vazgeç</button><button class="btn btn-gold" type="submit">Kaydet</button></div></form></div>';
+}
+function openNutritionEntry(entry=null) {
+  app.insertAdjacentHTML('beforeend',nutritionEntryModal(entry));bindModalClose();
+  const form=document.querySelector('#nutrition-form'),type=document.querySelector('#nutrition-entry-type');
+  const sync=()=>{document.querySelector('#nutrition-food-fields').hidden=type.value!=='food';document.querySelector('#nutrition-drink-fields').hidden=type.value!=='drink';};
+  type.addEventListener('change',sync);
+  if(entry?.meal_type)form.elements.meal_type.value=entry.meal_type;
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();const fd=new FormData(form),data=Object.fromEntries(fd);
+    if(data.entry_type==='drink'){data.calories=data.drink_calories||0;data.protein_g=0;data.carbs_g=0;data.fat_g=0;data.amount_g='';data.meal_type='';}
+    const button=form.querySelector('[type="submit"]');button.disabled=true;button.textContent='Kaydediliyor...';
+    try{await saveNutritionEntry(nutritionClientId(),data,entry?.id||null);notify('Beslenme kaydı kaydedildi.','success');document.querySelector('#modal')?.remove();await loadNutrition();}
+    catch(err){notify('Kayıt hatası: '+err.message,'error');button.disabled=false;button.textContent='Tekrar dene';}
+  });
+}
+function openNutritionTargetEditor() {
+  const t=state.nutritionData?.target||{calories:2200,protein_g:150,carbs_g:250,fat_g:70,water_ml:2500};
+  app.insertAdjacentHTML('beforeend','<div class="modal-backdrop" id="modal"><form class="modal" id="nutrition-target-form"><div class="modal-head"><div><span class="eyebrow">PERSONAL TARGETS</span><h3>Günlük hedefleri düzenle</h3></div><button type="button" class="icon-button" id="close-modal">'+icon('close')+'</button></div><div class="nutrition-form-grid">'+[['calories','Kalori (kcal)',t.calories],['protein_g','Protein (g)',t.protein_g],['carbs_g','Karbonhidrat (g)',t.carbs_g],['fat_g','Yağ (g)',t.fat_g],['water_ml','Su (ml)',t.water_ml]].map(([n,l,v])=>'<label>'+l+'<input name="'+n+'" type="number" min="0" required value="'+v+'"></label>').join('')+'</div><div class="modal-actions"><button type="button" class="btn btn-ghost" id="cancel-modal">Vazgeç</button><button class="btn btn-gold" type="submit">Hedefleri kaydet</button></div></form></div>');
+  bindModalClose();document.querySelector('#nutrition-target-form').addEventListener('submit',async e=>{e.preventDefault();try{await saveNutritionTarget(nutritionClientId(),Object.fromEntries(new FormData(e.currentTarget)));notify('Günlük hedefler güncellendi.','success');document.querySelector('#modal')?.remove();await loadNutrition();}catch(err){notify(err.message,'error');}});
+}
 function clientPortalView() {
   const me = state.clients[0];
   return `<div class="welcome-row"><div><p class="muted">AUREX danışan alanına hoş geldin.</p><h2>${escapeHtml(state.profile?.display_name || 'Sporcu')}</h2><p class="muted">Antrenörün tarafından paylaşılan çalışmalarını buradan takip edebilirsin.</p></div></div><div class="stats-grid">${statCard('Programlarım',state.programs.length,'Atanmış program','dumbbell')}${statCard('Seanslarım',state.sessions.length,'Kayıtlı seans','calendar')}</div><div class="content-grid"><article class="panel"><div class="panel-heading"><h3>Programlarım</h3></div>${state.programs.length?state.programs.map(p=>`<div class="session-row"><div class="program-symbol">${icon('dumbbell')}</div><div><b>${escapeHtml(p.name)}</b><small>${escapeHtml(p.objective||'')}</small>${programExerciseSummary(p)}</div></div>`).join(''):'<div class="empty-state compact">Henüz program atanmadı.</div>'}</article><article class="panel"><div class="panel-heading"><h3>Son seanslarım</h3></div>${state.sessions.length?state.sessions.map(s=>`<div class="session-row"><div class="date-chip">${new Date(s.scheduled_at).toLocaleDateString('tr-TR',{day:'2-digit',month:'short'})}</div><div><b>${formatDate(s.scheduled_at)}</b><small>${s.duration_minutes||'—'} dakika</small></div></div>`).join(''):'<div class="empty-state compact">Henüz seans kaydı yok.</div>'}</article></div>`;
@@ -202,9 +264,9 @@ function clientPortalView() {
 function render() {
   if (!state.session) return renderAuth();
   const isTrainer = ['trainer','admin'].includes(state.profile?.role);
-  if (isTrainer && !['dashboard','clients','programs','sessions'].includes(state.view)) state.view='dashboard';
-  if (!isTrainer && !['portal','my-programs','my-sessions'].includes(state.view)) state.view='portal';
-  let content = state.view==='dashboard'?dashboardView():state.view==='clients'?clientsView():state.view==='programs'?programsView():state.view==='sessions'?sessionsView():clientPortalView();
+  if (isTrainer && !['dashboard','clients','programs','sessions','nutrition'].includes(state.view)) state.view='dashboard';
+  if (!isTrainer && !['portal','my-programs','my-sessions','nutrition'].includes(state.view)) state.view='portal';
+  let content = state.view==='dashboard'?dashboardView():state.view==='clients'?clientsView():state.view==='programs'?programsView():state.view==='sessions'?sessionsView():state.view==='nutrition'?nutritionView():clientPortalView();
   shell(content);
   bindPageActions();
 }
@@ -224,6 +286,12 @@ function bindPageActions() {
   document.querySelectorAll('[data-edit-program]').forEach(b=>b.addEventListener('click',()=>openProgramEditor(b.dataset.editProgram)));
   document.querySelectorAll('[data-delete-program]').forEach(b=>b.addEventListener('click',()=>removeProgram(b.dataset.deleteProgram)));
   document.querySelector('#add-program')?.addEventListener('click',()=>{if(!state.clients.length)return notify('Önce bir danışan eklemelisin.','error');app.insertAdjacentHTML('beforeend',programModal());bindModalClose();const form=document.querySelector('#program-form');form.addEventListener('submit',saveProgram);document.querySelector('#add-exercise-row')?.addEventListener('click',()=>document.querySelector('#exercise-builder-list').insertAdjacentHTML('beforeend',exerciseBuilderRow()));document.querySelector('#exercise-builder-list')?.addEventListener('click',e=>{if(e.target.closest('.remove-exercise')){const rows=document.querySelectorAll('.exercise-builder-row');if(rows.length===1)return notify('Programda en az bir hareket kalmalı.','error');e.target.closest('.exercise-builder-row').remove();}});});
+  document.querySelector('#nutrition-client')?.addEventListener('change',e=>{state.nutritionClient=e.target.value;state.nutritionData=null;loadNutrition();});
+  document.querySelector('#nutrition-date')?.addEventListener('change',e=>{state.nutritionDate=e.target.value;loadNutrition();});
+  document.querySelector('#add-nutrition-entry')?.addEventListener('click',()=>openNutritionEntry());
+  document.querySelectorAll('[data-edit-nutrition]').forEach(b=>b.addEventListener('click',()=>openNutritionEntry(state.nutritionData?.entries.find(x=>x.id===b.dataset.editNutrition))));
+  document.querySelectorAll('[data-delete-nutrition]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('Bu beslenme kaydını silmek istiyor musun?'))return;try{await deleteNutritionEntry(b.dataset.deleteNutrition);notify('Kayıt silindi.','success');await loadNutrition();}catch(err){notify(err.message,'error');}}));
+  document.querySelector('#edit-nutrition-target')?.addEventListener('click',openNutritionTargetEditor);
   document.querySelector('#add-session')?.addEventListener('click',()=>{if(!state.clients.length)return notify('Önce bir danışan eklemelisin.','error');app.insertAdjacentHTML('beforeend',sessionModal());bindModalClose();document.querySelector('#session-form').addEventListener('submit',saveSession);});
 }
 async function saveClient(e) {
