@@ -45,7 +45,7 @@ function shell(content) {
   app.innerHTML = `
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
-        <a class="brand" href="#dashboard"><span class="brand-symbol">A</span><span><b>AUREX</b><small>TRAINER PLATFORM</small></span></a>
+        <a class="brand" href="#dashboard"><img class="brand-logo" src="/aurex/aurex-logo.svg" alt="AUREX Train Track Evolve"></a>
         <div class="workspace-label">WORKSPACE</div>
         <nav>${links.map(([id,label,ico])=>`<button class="nav-link ${state.view===id?'active':''}" data-view="${id}">${icon(ico)}<span>${label}</span></button>`).join('')}</nav>
         <div class="sidebar-bottom">
@@ -202,7 +202,7 @@ async function openClient(id) {
     ],async data=>{await addCoachNote(id,state.session.user.id,data.note);}));
   } catch(err){notify(err.message,'error');}
 }
-function showRecordForm(title, fields, save) {
+function showRecordForm(clientId, title, fields, save) {
   const modal=document.querySelector('#modal .modal');
   const form=document.createElement('form');
   form.className='inline-record-form';
@@ -214,12 +214,12 @@ function showRecordForm(title, fields, save) {
   form.addEventListener('submit',async e=>{
     e.preventDefault();
     const data=Object.fromEntries(new FormData(form));
-    try { await save(data); notify('Kayıt başarıyla eklendi.','success'); await refreshData(); document.querySelector('#modal')?.remove(); await openClient(id); }
+    try { await save(data); notify('Kayıt başarıyla eklendi.','success'); await refreshData(); document.querySelector('#modal')?.remove(); await openClient(clientId); }
     catch(err){notify(err.message,'error');}
   });
 }
 function renderAuth() {
-  app.innerHTML=`<main class="auth-layout"><section class="auth-brand"><div class="brand"><span class="brand-symbol">A</span><span><b>AUREX</b><small>TRAINER PLATFORM</small></span></div><div class="auth-hero"><span class="eyebrow">TRAIN SMARTER. TRACK BETTER.</span><h1>Gelişimin<br><span class="gold">kontrolü</span><br>senin elinde.</h1><p>Antrenörler ve danışanlar için sade, güçlü ve kişisel bir takip deneyimi.</p></div><div class="auth-foot">AUREX · by EB Digital Studio</div></section><section class="auth-form-side"><form class="auth-card" id="auth-form"><div class="auth-heading"><span class="eyebrow">WELCOME BACK</span><h2>Hesabına giriş yap</h2><p class="muted">AUREX çalışma alanına devam et.</p></div><div class="auth-tabs"><button type="button" class="auth-tab active" data-mode="login">Giriş yap</button><button type="button" class="auth-tab" data-mode="signup">Hesap oluştur</button></div><label>Ad soyad <input name="display_name" id="display-name" placeholder="Adınız Soyadınız" autocomplete="name" hidden></label><label>E-posta<input name="email" type="email" required autocomplete="email" placeholder="ornek@email.com"></label><label>Şifre<input name="password" type="password" required minlength="8" autocomplete="current-password" placeholder="En az 8 karakter"></label><button class="btn btn-gold full" type="submit" id="auth-submit">Giriş yap ${icon('arrow')}</button><p class="auth-note">Hesap oluşturduğunda varsayılan rolün danışan olur. Antrenör erişimi yönetici tarafından ayrıca tanımlanır.</p><p class="auth-error" id="auth-error"></p></form></section></main>`;
+  app.innerHTML=`<main class="auth-layout"><section class="auth-brand"><div class="brand auth-brand-logo"><img class="brand-logo" src="/aurex/aurex-logo.svg" alt="AUREX Train Track Evolve"></div><div class="auth-hero"><span class="eyebrow">TRAIN SMARTER. TRACK BETTER.</span><h1>Gelişimin<br><span class="gold">kontrolü</span><br>senin elinde.</h1><p>Antrenörler ve danışanlar için sade, güçlü ve kişisel bir takip deneyimi.</p></div><div class="auth-foot">AUREX · by EB Digital Studio</div></section><section class="auth-form-side"><form class="auth-card" id="auth-form"><div class="auth-heading"><span class="eyebrow">WELCOME BACK</span><h2>Hesabına giriş yap</h2><p class="muted">AUREX çalışma alanına devam et.</p></div><div class="auth-tabs"><button type="button" class="auth-tab active" data-mode="login">Giriş yap</button><button type="button" class="auth-tab" data-mode="signup">Hesap oluştur</button></div><label>Ad soyad <input name="display_name" id="display-name" placeholder="Adınız Soyadınız" autocomplete="name" hidden></label><label>E-posta<input name="email" type="email" required autocomplete="email" placeholder="ornek@email.com"></label><label>Şifre<input name="password" type="password" required minlength="8" autocomplete="current-password" placeholder="En az 8 karakter"></label><button class="btn btn-gold full" type="submit" id="auth-submit">Giriş yap ${icon('arrow')}</button><p class="auth-note">Hesap oluşturduğunda varsayılan rolün danışan olur. Antrenör erişimi yönetici tarafından ayrıca tanımlanır.</p><p class="auth-error" id="auth-error"></p></form></section></main>`;
   let mode='login';
   document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));const name=document.querySelector('#display-name');name.hidden=mode!=='signup';name.required=mode==='signup';document.querySelector('#auth-submit').innerHTML=(mode==='login'?'Giriş yap ':'Hesap oluştur ')+icon('arrow');}));
   document.querySelector('#auth-form').addEventListener('submit',async e=>{
