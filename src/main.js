@@ -194,13 +194,13 @@ async function openClient(id) {
       try { await updateClientStatus(id,c.status==='active'?'paused':'active'); notify('Danışan durumu güncellendi.','success'); await refreshData(); close(); render(); }
       catch(err){notify(err.message,'error');}
     });
-    document.querySelector('#add-assessment')?.addEventListener('click',()=>showRecordForm('Ölçüm ekle',[
+    document.querySelector('#add-assessment')?.addEventListener('click',()=>showRecordForm(id,'Ölçüm ekle',[
       ['height_cm','Boy (cm)','number'],['weight_kg','Kilo (kg)','number'],['waist_cm','Bel (cm)','number'],['body_fat_pct','Yağ oranı (%)','number'],['chest_cm','Göğüs (cm)','number'],['arm_cm','Kol (cm)','number'],['leg_cm','Bacak (cm)','number'],['fitness_notes','Değerlendirme notu','textarea']
     ],async data=>{await saveClientAssessment(id,data);}));
-    document.querySelector('#add-goal')?.addEventListener('click',()=>showRecordForm('Hedef ekle',[
+    document.querySelector('#add-goal')?.addEventListener('click',()=>showRecordForm(id,'Hedef ekle',[
       ['title','Hedef başlığı','text'],['description','Açıklama','textarea'],['target_date','Hedef tarihi','date']
     ],async data=>{await addClientGoal(id,data);}));
-    document.querySelector('#add-note')?.addEventListener('click',()=>showRecordForm('Antrenör notu',[
+    document.querySelector('#add-note')?.addEventListener('click',()=>showRecordForm(id,'Antrenör notu',[
       ['note','Not','textarea']
     ],async data=>{await addCoachNote(id,state.session.user.id,data.note);}));
   } catch(err){notify(err.message,'error');}
