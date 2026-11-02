@@ -91,7 +91,7 @@ function dashboardView() {
 
 function clientRows(clients) {
   if (!clients.length) return '<div class="empty-state"><div class="empty-icon">＋</div><b>Henüz danışan yok</b><p>İlk danışanını ekleyerek takip sistemini başlat.</p></div>';
-  return `<div class="table-wrap"><table><thead><tr><th>DANIŞAN</th><th>HEDEF</th><th>DURUM</th><th></th></tr></thead><tbody>${clients.map(c=>`<tr><td><div class="person-cell"><div class="avatar small">${initials(c.first_name+' '+c.last_name)}</div><div><b>${escapeHtml(c.first_name+' '+c.last_name)}</b><small>${escapeHtml(c.sport || 'Genel fitness')}</small></div></div></td><td>${escapeHtml(c.goal || 'Belirtilmedi')}</td><td><span class="pill ${c.status==='active'?'green':'gray'}">${c.status==='active'?'Aktif':'Pasif'}</span></td><td><button class="row-action" data-client="${c.id}">İncele ${icon('arrow')}</button></td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table><thead><tr><th>DANIŞAN</th><th>HEDEF</th><th>DURUM</th><th></th></tr></thead><tbody>${clients.map(c=>`<tr><td><div class="person-cell"><div class="avatar small">${initials(c.first_name+' '+c.last_name)}</div><div><b>${escapeHtml(c.first_name+' '+c.last_name)}</b><small>${escapeHtml(c.sport || 'Genel fitness')}</small></div></div></td><td>${escapeHtml(c.goal || 'Belirtilmedi')}</td><td><span class="pill ${c.status==='active'?'green':'gray'}">${c.status==='active'?'Aktif':c.status==='paused'?'Duraklatıldı':'Tamamlandı'}</span></td><td><button class="row-action" data-client="${c.id}">İncele ${icon('arrow')}</button></td></tr>`).join('')}</tbody></table></div>`;
 }
 
 function clientsView() {
@@ -135,7 +135,7 @@ function bindModalClose() {
 function bindPageActions() {
   document.querySelectorAll('#add-client').forEach(b=>b.addEventListener('click',()=>{app.insertAdjacentHTML('beforeend',clientModal());bindModalClose();document.querySelector('#client-form').addEventListener('submit',saveClient);}));
   document.querySelectorAll('[data-client]').forEach(b=>b.addEventListener('click',()=>openClient(b.dataset.client)));
-  const filterClients=()=>{const q=(document.querySelector('#client-search')?.value||'').trim().toLocaleLowerCase('tr-TR');const status=document.querySelector('#client-status-filter')?.value||'all';document.querySelectorAll('tbody tr').forEach(row=>{const pill=row.querySelector('.pill');const rowStatus=pill?.textContent.trim()==='Aktif'?'active':'paused';const matchesText=row.textContent.toLocaleLowerCase('tr-TR').includes(q);const matchesStatus=status==='all'||status===rowStatus;row.hidden=!(matchesText&&matchesStatus);});};
+  const filterClients=()=>{const q=(document.querySelector('#client-search')?.value||'').trim().toLocaleLowerCase('tr-TR');const status=document.querySelector('#client-status-filter')?.value||'all';document.querySelectorAll('tbody tr').forEach(row=>{const pill=row.querySelector('.pill');const rowStatus=pill?.textContent.trim()==='Aktif'?'active':pill?.textContent.trim()==='Duraklatıldı'?'paused':'completed';const matchesText=row.textContent.toLocaleLowerCase('tr-TR').includes(q);const matchesStatus=status==='all'||status===rowStatus;row.hidden=!(matchesText&&matchesStatus);});};
   document.querySelector('#client-search')?.addEventListener('input',filterClients);
   document.querySelector('#client-status-filter')?.addEventListener('change',filterClients);
   document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.view)));
